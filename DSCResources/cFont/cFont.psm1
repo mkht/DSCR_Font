@@ -24,6 +24,11 @@ namespace FontResource
         [DllImport("user32.dll", SetLastError = true)]
         private static extern bool PostMessage(IntPtr hWnd, WM Msg, IntPtr wParam, IntPtr lParam);
 
+        public static bool PostFontChangedMessage() {
+            bool posted = PostMessage(HWND_BROADCAST, WM.FONTCHANGE, IntPtr.Zero, IntPtr.Zero);
+            return posted;
+        }
+
         public static int AddFont(string fontFilePath) {
             FileInfo fontFile = new FileInfo(fontFilePath);
             if (!fontFile.Exists){
@@ -192,6 +197,7 @@ function Install-Font {
     $FontsFolder = $ObjShell.Namespace($FONTS)
     try{
         $FontsFolder.CopyHere($FullPath.Path, $CopyOptions)
+        [void][FontResource.AddRemoveFonts]::PostFontChangedMessage()
     }
     catch{
         Write-Error $_.Exception.Message
