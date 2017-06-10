@@ -22,7 +22,7 @@ PowerShell DSC Resource to add / remove Font.
 + [string] **FontFile** (Key):
     + The path of the font file.
     + You can specify remote file path. (UNC/http/https/ftp)
-    + Make sure the extension of the file path is { .ttf | .ttc | .otf }
+    + Make sure the extension of the file path is { .ttf | .ttc | .otf | .fon}
 
 + [PSCredential] **Credential** (Write):
     + The credential for access to remote source if needed.
