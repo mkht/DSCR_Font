@@ -78,6 +78,7 @@ function Get-TargetResource
         $Ensure = 'Present',
 
         [parameter(Mandatory = $true)]
+        [ValidatePattern('\.(ttf|ttc|otf|fon)$')]
         [string]
         $FontFile,
 
@@ -117,6 +118,7 @@ function Test-TargetResource
         $Ensure = 'Present',
 
         [parameter(Mandatory = $true)]
+        [ValidatePattern('\.(ttf|ttc|otf|fon)$')]
         [string]
         $FontFile,
 
@@ -139,6 +141,7 @@ function Set-TargetResource
         $Ensure = 'Present',
 
         [parameter(Mandatory = $true)]
+        [ValidatePattern('\.(ttf|ttc|otf|fon)$')]
         [string]
         $FontFile,
 
