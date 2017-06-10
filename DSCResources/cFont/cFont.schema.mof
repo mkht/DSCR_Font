@@ -1,0 +1,8 @@
+
+[ClassVersion("1.0.0.0"), FriendlyName("cFont")]
+class cFont : OMI_BaseResource
+{
+    [Write, ValueMap{"Present","Absent"}, Values{"Present","Absent"}] String Ensure;
+    [Key] String FontFile;
+    [write,EmbeddedInstance("MSFT_Credential")] string Credential;
+};
