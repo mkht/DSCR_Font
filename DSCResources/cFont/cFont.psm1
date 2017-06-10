@@ -27,7 +27,7 @@ namespace FontResource
         public static int AddFont(string fontFilePath) {
             FileInfo fontFile = new FileInfo(fontFilePath);
             if (!fontFile.Exists){
-                return 0; 
+                return 0;
             }
             try{
                 int retVal = AddFontResource(fontFilePath);
@@ -110,7 +110,7 @@ function Test-TargetResource
         [ValidateSet("Present","Absent")]
         [string]
         $Ensure = 'Present',
-        
+
         [parameter(Mandatory = $true)]
         [string]
         $FontFile,
@@ -132,7 +132,7 @@ function Set-TargetResource
         [ValidateSet("Present","Absent")]
         [string]
         $Ensure = 'Present',
-        
+
         [parameter(Mandatory = $true)]
         [string]
         $FontFile,
@@ -278,12 +278,7 @@ function Get-RemoteFile {
                 }
 
                 # ファイルの場所によって処理分岐(ローカル or 共有フォルダ or Web)
-                if($tempPath.IsLoopback -and (!$tempPath.IsUnc)){   # ローカルファイル
-                    Write-Verbose ('"{0}" is local file.' -f $tempPath.LocalPath)
-                    $valid = $true
-                    $OutFile = $tempPath.LocalPath
-                }
-                elseif($tempPath.IsUnc){ # 共有フォルダ
+                if($tempPath.IsLoopback -or $tempPath.IsUnc){ # ローカル or 共有フォルダ
                     # 資格情報を使う場合は一度ドライブをマップする必要あり
                     if($PSBoundParameters.Credential){
                         New-PSDrive -Name $tmpDriveName -PSProvider FileSystem -Root (Split-Path $tempPath.LocalPath) -Credential $Credential -ErrorAction Stop | Out-Null
