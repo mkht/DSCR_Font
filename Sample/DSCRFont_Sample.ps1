@@ -8,12 +8,14 @@ Configuration DSCR_Font_Sample
         cFont Add_Font_Sample
         {
             Ensure   = 'Present'
+            FontName = 'Noto Serif (TrueType)'
             FontFile = 'C:\temp\NotoSerif-Regular.ttf'
         }
 
         cFont Remove_Font_Sample
         {
             Ensure   = 'Absent'
+            FontName = 'Noto Sans Regular (TrueType)'
             FontFile = 'NotoSans-Regular.ttf'
         }
     }
