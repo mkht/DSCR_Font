@@ -1,4 +1,5 @@
-﻿$CSharpCode = @'
+﻿
+$CSharpCode = @'
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -81,22 +82,44 @@ function Get-TargetResource {
         [string]
         $FontFile,
 
+        [parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $FontName,
+
         [pscredential]
         $Credential
     )
     $GetRes = @{
-        Ensure     = $Ensure
-        FontFile   = $FontFile
-        Credential = $Credential
+        Ensure   = 'Absent'
+        FontFile = $FontFile
+        FontName = $FontName
     }
-    $FontFolder = Join-Path $Env:windir '\Fonts'
-    $Filename = Split-Path $FontFile -Leaf
 
-    if (Test-Path (Join-Path $FontFolder $Filename) -PathType Leaf) {
-        $GetRes.Ensure = 'Present'
+    $SystemFontFolder = Join-Path $Env:windir '\Fonts'
+    $UserFontFolder = Join-Path $Env:LOCALAPPDATA '\Microsoft\Windows\Fonts'
+    $SystemFontRegistry = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
+    $UserFontRegistry = 'HKCU:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
+
+    $FileName = Split-Path $FontFile -Leaf
+
+    # Search system fonts
+    if (Test-Path (Join-Path $SystemFontFolder $FileName) -PathType Leaf) {
+        if ($Value = (Get-ItemProperty $SystemFontRegistry).PsObject.Properties | where { $_.value -eq $FileName }) {
+            $GetRes.FontFile = $FileName
+            $GetRes.FontName = $Value.Name
+            $GetRes.Ensure = 'Present'
+        }
     }
-    else {
-        $GetRes.Ensure = 'Absent'
+    elseif ($global:PsDscContext.RunAsUser) {
+        # Search user fonts
+        if (Test-Path (Join-Path $UserFontFolder $FileName) -PathType Leaf) {
+            if ($Value = (Get-ItemProperty $UserFontRegistry).PsObject.Properties | where { $_.value -eq (Join-Path $UserFontFolder $FileName) }) {
+                $GetRes.FontFile = $FileName
+                $GetRes.FontName = $Value.Name
+                $GetRes.Ensure = 'Present'
+            }
+        }
     }
 
     $GetRes
@@ -120,6 +143,11 @@ function Test-TargetResource {
         [string]
         $FontFile,
 
+        [parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $FontName,
+
         [pscredential]
         $Credential
     )
@@ -142,25 +170,30 @@ function Set-TargetResource {
         [string]
         $FontFile,
 
+        [parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $FontName,
+
         [pscredential]
         $Credential
     )
     $ErrorActionPreference = 'Stop'
 
     if ($Ensure -eq 'Absent') {
-        #アンインストール
+        #Uninstall
         $Filename = Split-Path $FontFile -Leaf
         Write-Verbose ('Uninstalling font...')
         UnInstall-Font $Filename -ErrorAction Stop
     }
     elseif ($Ensure -eq 'Present') {
-        #インストール
+        #Install
         $private:tmpFolder = $Env:TEMP
         $TempFont = (Get-RemoteFile -Path $FontFile -DestinationFolder $tmpFolder -Credential $Credential -Force -PassThru -ErrorAction Stop)   # TEMPフォルダに一度コピー
         if (Test-Path $TempFont) {
             try {
                 Write-Verbose ('Installing font...')
-                Install-Font $TempFont.Fullname -ErrorAction Stop
+                Install-Font -Path $TempFont.Fullname -Name $FontName -ErrorAction Stop
                 Write-Verbose ('Font Installed')
             }
             catch {
@@ -182,21 +215,33 @@ function Set-TargetResource {
 # ////////////////////////////////////////////////////////////////////////////////////////
 # ////////////////////////////////////////////////////////////////////////////////////////
 function Install-Font {
-    # C:\Windows\Fontsにファイルコピーしただけではインストールされない
-    # shell.application経由でコピーする
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory, Position = 0)]
         [ValidateScript( { Test-Path $_ })]
-        $Path
+        [string] $Path,
+
+        [Parameter(Mandatory, Position = 1)]
+        [string] $Name
     )
     $FullPath = Resolve-Path $Path -ErrorAction Stop
-    $local:FONTS = 0x14;
-    $local:CopyOptions = 4 + 16 + 1024  #GUIを非表示にするオプション
-    $ObjShell = New-Object -ComObject Shell.Application
-    $FontsFolder = $ObjShell.Namespace($FONTS)
+    $FileName = Split-Path $FullPath -Leaf
+
+    $SystemFontFolder = Join-Path $Env:windir '\Fonts'
+    $UserFontFolder = Join-Path $Env:LOCALAPPDATA '\Microsoft\Windows\Fonts'
+    $SystemFontRegistry = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
+    $UserFontRegistry = 'HKCU:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
+
+    if ($global:PsDscContext.RunAsUser) {
+        Copy-Item $FullPath $UserFontFolder -Force
+        $null = New-ItemProperty $UserFontRegistry -Value $FileName -Name $Name -PropertyType String -Force
+    }
+    else {
+        Copy-Item $FullPath $SystemFontFolder -Force
+        $null = New-ItemProperty $SystemFontRegistry -Value $FileName -Name $Name -PropertyType String -Force
+    }
+
     try {
-        $FontsFolder.CopyHere($FullPath.Path, $CopyOptions)
         [void][FontResource.AddRemoveFonts]::PostFontChangedMessage()
     }
     catch {
@@ -210,31 +255,47 @@ function UnInstall-Font {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory, Position = 0)]
-        $Font
+        $FontFileName
     )
-    $RegFont = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
-    $FontFolder = Join-Path $Env:windir '\Fonts'
-    $Filename = Split-Path $Font -Leaf
-    $FontPath = Join-Path $FontFolder $Filename
 
-    if (-not (Test-Path $FontPath -PathType Leaf)) {
-        Write-Error 'Font file not found'
-        return
+    $SystemFontFolder = Join-Path $Env:windir '\Fonts'
+    $UserFontFolder = Join-Path $Env:LOCALAPPDATA '\Microsoft\Windows\Fonts'
+    $SystemFontRegistry = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
+    $UserFontRegistry = 'HKCU:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
+
+    $FileName = Split-Path $FontFileName -Leaf
+
+    try {
+        [void][FontResource.AddRemoveFonts]::RemoveFont($FileName)
+        [void][FontResource.AddRemoveFonts]::PostFontChangedMessage()
+    }
+    catch {
+        Write-Error $_.Exception.Message
     }
 
-    if (-not [FontResource.AddRemoveFonts]::RemoveFont($FontPath)) {
-        Write-Error 'Remove font failed'
+    if (Test-Path -LiteralPath $SystemFontRegistry) {
+        if ($Value = (Get-ItemProperty $SystemFontRegistry).PsObject.Properties | where { $_.value -eq $FileName }) {
+            Remove-ItemProperty -LiteralPath $SystemFontRegistry -Name $Value.Name
+        }
     }
-    else {
-        #Write-Verbose 'Remove font succeeded'
-        Start-Sleep -Seconds 2  # ちょっと待たないと失敗することがあるような、ないような...
-        if ($Value = (Get-ItemProperty $RegFont).PsObject.Properties | where { $_.value -eq $Filename }) {
-            Remove-ItemProperty -Path $RegFont -Name $Value.Name
+
+    if (Test-Path -LiteralPath $UserFontRegistry) {
+        if ($Value = (Get-ItemProperty $UserFontRegistry).PsObject.Properties | where { $_.value -eq (Join-Path $UserFontFolder $FileName) }) {
+            Remove-ItemProperty -LiteralPath $UserFontRegistry -Name $Value.Name
         }
-        if (Test-Path $FontPath) {
-            Remove-Item $FontPath -Force -ErrorAction Stop
-        }
-        Write-Verbose 'Remove font succeeded'
+    }
+
+    if ((Get-Service 'FontCache').Status -eq 'Running') {
+        Restart-Service 'FontCache' -ea SilentlyContinue
+    }
+    Start-Sleep -Seconds 2
+
+    if (Test-Path -LiteralPath (Join-Path $SystemFontFolder $FileName) -PathType Leaf) {
+        Remove-Item -LiteralPath (Join-Path $SystemFontFolder $FileName) -Force
+    }
+
+    if (Test-Path -LiteralPath (Join-Path $UserFontFolder $FileName) -PathType Leaf) {
+        Remove-Item -LiteralPath (Join-Path $UserFontFolder $FileName) -Force -ea SilentlyContinue
     }
 }
 
