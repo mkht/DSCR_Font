@@ -62,4 +62,4 @@ Configuration Example2
 
 ## ChangeLog
 ### v0.7.0
-+ Fix compatibility of Windows 10 1809 or later.
++ Fix compatibility with Windows 10 1809 or later.
