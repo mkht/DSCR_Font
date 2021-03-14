@@ -67,13 +67,12 @@ Add-Type $CSharpCode
 
 # ////////////////////////////////////////////////////////////////////////////////////////
 # ////////////////////////////////////////////////////////////////////////////////////////
-function Get-TargetResource
-{
+function Get-TargetResource {
     [CmdletBinding()]
     [OutputType([System.Collections.Hashtable])]
     param
     (
-        [ValidateSet("Present","Absent")]
+        [ValidateSet('Present', 'Absent')]
         [string]
         $Ensure = 'Present',
 
@@ -86,17 +85,17 @@ function Get-TargetResource
         $Credential
     )
     $GetRes = @{
-        Ensure = $Ensure
-        FontFile = $FontFile
+        Ensure     = $Ensure
+        FontFile   = $FontFile
         Credential = $Credential
     }
     $FontFolder = Join-Path $Env:windir '\Fonts'
     $Filename = Split-Path $FontFile -Leaf
 
-    if(Test-Path (Join-Path $FontFolder $Filename) -PathType Leaf){
+    if (Test-Path (Join-Path $FontFolder $Filename) -PathType Leaf) {
         $GetRes.Ensure = 'Present'
     }
-    else{
+    else {
         $GetRes.Ensure = 'Absent'
     }
 
@@ -107,13 +106,12 @@ function Get-TargetResource
 
 # ////////////////////////////////////////////////////////////////////////////////////////
 # ////////////////////////////////////////////////////////////////////////////////////////
-function Test-TargetResource
-{
+function Test-TargetResource {
     [CmdletBinding()]
     [OutputType([System.Boolean])]
     param
     (
-        [ValidateSet("Present","Absent")]
+        [ValidateSet('Present', 'Absent')]
         [string]
         $Ensure = 'Present',
 
@@ -131,12 +129,11 @@ function Test-TargetResource
 
 # ////////////////////////////////////////////////////////////////////////////////////////
 # ////////////////////////////////////////////////////////////////////////////////////////
-function Set-TargetResource
-{
+function Set-TargetResource {
     [CmdletBinding()]
     param
     (
-        [ValidateSet("Present","Absent")]
+        [ValidateSet('Present', 'Absent')]
         [string]
         $Ensure = 'Present',
 
@@ -150,32 +147,32 @@ function Set-TargetResource
     )
     $ErrorActionPreference = 'Stop'
 
-    if($Ensure -eq 'Absent'){
-    #アンインストール
+    if ($Ensure -eq 'Absent') {
+        #アンインストール
         $Filename = Split-Path $FontFile -Leaf
         Write-Verbose ('Uninstalling font...')
         UnInstall-Font $Filename -ErrorAction Stop
     }
-    elseif($Ensure -eq 'Present'){
-    #インストール
+    elseif ($Ensure -eq 'Present') {
+        #インストール
         $private:tmpFolder = $Env:TEMP
         $TempFont = (Get-RemoteFile -Path $FontFile -DestinationFolder $tmpFolder -Credential $Credential -Force -PassThru -ErrorAction Stop)   # TEMPフォルダに一度コピー
-        if(Test-Path $TempFont){
-            try{
+        if (Test-Path $TempFont) {
+            try {
                 Write-Verbose ('Installing font...')
                 Install-Font $TempFont.Fullname -ErrorAction Stop
                 Write-Verbose ('Font Installed')
             }
-            catch{
+            catch {
                 Write-Error $_.Exception.Message
             }
-            finally{
-                if(Test-Path $TempFont){
+            finally {
+                if (Test-Path $TempFont) {
                     Remove-Item $TempFont -Force -ErrorAction SilentlyContinue
                 }
             }
         }
-        else{
+        else {
             Write-Error 'Failed to copy the font file'
         }
     }
@@ -189,8 +186,8 @@ function Install-Font {
     # shell.application経由でコピーする
     [CmdletBinding()]
     Param(
-        [Parameter(Mandatory,Position=0)]
-        [ValidateScript({Test-Path $_})]
+        [Parameter(Mandatory, Position = 0)]
+        [ValidateScript( { Test-Path $_ })]
         $Path
     )
     $FullPath = Resolve-Path $Path -ErrorAction Stop
@@ -198,11 +195,11 @@ function Install-Font {
     $local:CopyOptions = 4 + 16 + 1024  #GUIを非表示にするオプション
     $ObjShell = New-Object -ComObject Shell.Application
     $FontsFolder = $ObjShell.Namespace($FONTS)
-    try{
+    try {
         $FontsFolder.CopyHere($FullPath.Path, $CopyOptions)
         [void][FontResource.AddRemoveFonts]::PostFontChangedMessage()
     }
-    catch{
+    catch {
         Write-Error $_.Exception.Message
     }
 }
@@ -212,29 +209,29 @@ function Install-Font {
 function UnInstall-Font {
     [CmdletBinding()]
     Param(
-        [Parameter(Mandatory,Position=0)]
+        [Parameter(Mandatory, Position = 0)]
         $Font
     )
-    $RegFont = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
+    $RegFont = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
     $FontFolder = Join-Path $Env:windir '\Fonts'
     $Filename = Split-Path $Font -Leaf
     $FontPath = Join-Path $FontFolder $Filename
 
-    if(-not (Test-Path $FontPath -PathType Leaf)){
+    if (-not (Test-Path $FontPath -PathType Leaf)) {
         Write-Error 'Font file not found'
         return
     }
 
-    if(-not [FontResource.AddRemoveFonts]::RemoveFont($FontPath)){
+    if (-not [FontResource.AddRemoveFonts]::RemoveFont($FontPath)) {
         Write-Error 'Remove font failed'
     }
-    else{
+    else {
         #Write-Verbose 'Remove font succeeded'
         Start-Sleep -Seconds 2  # ちょっと待たないと失敗することがあるような、ないような...
-        if($Value = (Get-ItemProperty $RegFont).PsObject.Properties | where {$_.value -eq $Filename}){
+        if ($Value = (Get-ItemProperty $RegFont).PsObject.Properties | where { $_.value -eq $Filename }) {
             Remove-ItemProperty -Path $RegFont -Name $Value.Name
         }
-        if(Test-Path $FontPath){
+        if (Test-Path $FontPath) {
             Remove-Item $FontPath -Force -ErrorAction Stop
         }
         Write-Verbose 'Remove font succeeded'
@@ -246,17 +243,17 @@ function UnInstall-Font {
 function Get-RemoteFile {
     [CmdletBinding()]
     Param(
-        [Parameter(Mandatory=$true, Position=0)]
-        [Alias("Uri")]
-        [Alias("SourcePath")]
+        [Parameter(Mandatory = $true, Position = 0)]
+        [Alias('Uri')]
+        [Alias('SourcePath')]
         [System.Uri[]] $Path, # ダウンロードするファイルパス（URI）
 
-        [Parameter(Mandatory=$true, Position=1)]
+        [Parameter(Mandatory = $true, Position = 1)]
         [string]$DestinationFolder, # ダウンロード先フォルダ
 
         [Parameter()]
         [AllowNull()]
-        [pscredential]$Credential,  # 資格情報
+        [pscredential]$Credential, # 資格情報
 
         [Parameter()]
         [int]$TimeoutSec = 0,
@@ -267,46 +264,47 @@ function Get-RemoteFile {
         [Parameter()]
         [switch]$PassThru
     )
-    begin{
-        if(-not (Test-Path $DestinationFolder -PathType Container)){
+    begin {
+        if (-not (Test-Path $DestinationFolder -PathType Container)) {
             Write-Verbose ('DestinationFolder Folder "{0}" is not exist. Will create it.' -f $DestinationFolder)
             New-Item $DestinationFolder -ItemType Directory -Force -ErrorAction Stop
         }
     }
 
-    Process{
-        foreach($private:tempPath in $Path){
-            try{
+    Process {
+        foreach ($private:tempPath in $Path) {
+            try {
                 $private:OutFile = ''
                 $private:valid = $true
                 $private:tmpDriveName = [Guid]::NewGuid()
 
-                if($tempPath.IsLoopback -eq $null){
+                if ($tempPath.IsLoopback -eq $null) {
                     $valid = $false
-                    throw ("{0} is not valid uri." -f $tempPath)
+                    throw ('{0} is not valid uri.' -f $tempPath)
                 }
 
                 # ファイルの場所によって処理分岐(ローカル or 共有フォルダ or Web)
-                if($tempPath.IsLoopback -or $tempPath.IsUnc){ # ローカル or 共有フォルダ
+                if ($tempPath.IsLoopback -or $tempPath.IsUnc) {
+                    # ローカル or 共有フォルダ
                     # 資格情報を使う場合は一度ドライブをマップする必要あり
-                    if($PSBoundParameters.Credential){
+                    if ($PSBoundParameters.Credential) {
                         New-PSDrive -Name $tmpDriveName -PSProvider FileSystem -Root (Split-Path $tempPath.LocalPath) -Credential $Credential -ErrorAction Stop | Out-Null
                     }
                     # ローカルにコピーする
                     $OutFile = Join-Path $DestinationFolder ([System.IO.Path]::GetFileName($tempPath.LocalPath))
-                    if(Test-Path $OutFile -PathType Leaf){
-                        if($tempPath.LocalPath -eq $OutFile){
-                            if($PassThru){
-                                if(Test-Path $OutFile){
+                    if (Test-Path $OutFile -PathType Leaf) {
+                        if ($tempPath.LocalPath -eq $OutFile) {
+                            if ($PassThru) {
+                                if (Test-Path $OutFile) {
                                     Get-Item $OutFile
                                 }
                             }
                             continue
                         }
-                        elseif($Force){
-                            Write-Warning ('"{0}" will be overwritten.'-f $OutFile)
+                        elseif ($Force) {
+                            Write-Warning ('"{0}" will be overwritten.' -f $OutFile)
                         }
-                        else{
+                        else {
                             $valid = $false
                             throw ("'{0}' is exist. If you want to replace existing file, Use 'Force' switch." -f $OutFile)
                         }
@@ -315,14 +313,14 @@ function Get-RemoteFile {
                     Write-Verbose ("Copy file from '{0}' to '{1}'" -f $tempPath.LocalPath, $DestinationFolder)
                     Copy-Item -Path $tempPath.LocalPath -Destination $DestinationFolder -ErrorAction Stop -Force:$Force
                 }
-                elseif($tempPath.Scheme -match 'http|https|ftp'){
+                elseif ($tempPath.Scheme -match 'http|https|ftp') {
                     # WebからDL
                     $OutFile = Join-Path $DestinationFolder ([System.IO.Path]::GetFileName($tempPath.AbsoluteUri))
-                    if(Test-Path $OutFile -PathType Leaf){
-                        if($Force){
-                            Write-Warning ('"{0}" will be overwritten.'-f $OutFile)
+                    if (Test-Path $OutFile -PathType Leaf) {
+                        if ($Force) {
+                            Write-Warning ('"{0}" will be overwritten.' -f $OutFile)
                         }
-                        else{
+                        else {
                             $valid = $false
                             throw ("'{0}' is exist. If you want to replace existing file, Use 'Force' switch." -f $OutFile)
                         }
@@ -333,22 +331,22 @@ function Get-RemoteFile {
                     Invoke-WebRequest -Uri $tempPath.AbsoluteUri -OutFile $OutFile -Credential $Credential -TimeoutSec $TimeoutSec -ErrorAction stop
                     $VerbosePreference = $origVerbose
                 }
-                else{
+                else {
                     $valid = $false
-                    throw ("{0} is not valid uri." -f $tempPath)
+                    throw ('{0} is not valid uri.' -f $tempPath)
                 }
 
-                if($valid -and $OutFile -and $PassThru){
-                    if(Test-Path $OutFile){
+                if ($valid -and $OutFile -and $PassThru) {
+                    if (Test-Path $OutFile) {
                         Get-Item $OutFile
                     }
                 }
             }
-            catch [Exception]{
+            catch [Exception] {
                 Write-Error $_.Exception.Message
             }
-            finally{
-                if(Get-PSDrive | where {$_.Name -eq $tmpDriveName}){
+            finally {
+                if (Get-PSDrive | where { $_.Name -eq $tmpDriveName }) {
                     Remove-PSDrive -Name $tmpDriveName -Force
                 }
             }
