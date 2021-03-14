@@ -233,11 +233,14 @@ function Install-Font {
     $UserFontRegistry = 'HKCU:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
 
     if ($global:PsDscContext.RunAsUser) {
-        Copy-Item $FullPath $UserFontFolder -Force
-        $null = New-ItemProperty $UserFontRegistry -Value $FileName -Name $Name -PropertyType String -Force
+        if (-not (Test-Path -LiteralPath $UserFontFolder -PathType Container)) {
+            $null = New-Item $UserFontFolder -ItemType Directory -Force
+        }
+        Copy-Item $FullPath (Join-Path $UserFontFolder $FileName) -Force
+        $null = New-ItemProperty $UserFontRegistry -Value (Join-Path $UserFontFolder $FileName) -Name $Name -PropertyType String -Force
     }
     else {
-        Copy-Item $FullPath $SystemFontFolder -Force
+        Copy-Item $FullPath (Join-Path $SystemFontFolder $FileName) -Force
         $null = New-ItemProperty $SystemFontRegistry -Value $FileName -Name $Name -PropertyType String -Force
     }
 
