@@ -3,6 +3,7 @@
 class cFont : OMI_BaseResource
 {
     [Write, ValueMap{"Present","Absent"}, Values{"Present","Absent"}] String Ensure;
-    [Key] String FontFile;
+    [Key] String FontName;
+    [Required] String FontFile;
     [write,EmbeddedInstance("MSFT_Credential")] string Credential;
 };
