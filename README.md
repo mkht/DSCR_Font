@@ -19,7 +19,11 @@ PowerShell DSC Resource to add / remove Font.
     + Specify installation state of the font.
     + The default value is Present. { Present | Absent }
 
-+ [string] **FontFile** (Key):
++ [string] **FontName** (Key):
+    + The name of the font.
+    + You should specify the exact font name. To check the font name, install the font manually and refer to the `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts` registry key.
+
++ [string] **FontFile** (Require):
     + The path of the font file.
     + You can specify remote file path. (UNC/http/https/ftp)
     + Make sure the extension of the file path is { .ttf | .ttc | .otf | .fon}
@@ -35,8 +39,9 @@ Configuration Example1
     Import-DscResource -ModuleName DSCR_Font
     cFont Add_NotoSerif
     {
-        Ensure = "Present"
-        FontFile = "C:\NotoSerif-Regular.ttf"
+        Ensure   = 'Present'
+        FontName = 'Noto Serif (TrueType)'
+        FontFile = 'C:\NotoSerif-Regular.ttf'
     }
 }
 ```
@@ -48,10 +53,13 @@ Configuration Example2
     Import-DscResource -ModuleName DSCR_Font
     cFont Remove_NotoSans
     {
-        Ensure = "Absent"
-        FontFile = "NotoSans-Regular.ttf"
+        Ensure   = 'Absent'
+        FontName = 'Noto Sans Regular (TrueType)'
+        FontFile = 'NotoSans-Regular.ttf'
     }
 }
 ```
 
 ## ChangeLog
+### v0.7.0
++ Fix compatibility of Windows 10 1809 or later.
